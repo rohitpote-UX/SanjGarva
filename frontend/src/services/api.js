@@ -2,17 +2,19 @@ import i18n from '../locales'
 import { storage, session } from '../utils/storage'
 
 function resolveBaseUrl() {
-  const envUrl = (import.meta.env.VITE_API_URL || '').trim()
-
-  // In production browser environments (not localhost / 127.0.0.1),
-  // NEVER use a localhost or 127.0.0.1 URL even if configured in Vite env.
+  // If running in browser on remote host (e.g. sanjgarva.vercel.app), NEVER use localhost / 127.0.0.1
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    if (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
-      return '/api'
-    }
+    return '/api'
   }
 
-  return (envUrl || '/api').replace(/\/+$/, '')
+  // In production builds, ALWAYS force relative '/api' on the same domain
+  if (import.meta.env.PROD) {
+    return '/api'
+  }
+
+  // In local development, respect VITE_API_URL (e.g. http://127.0.0.1:8765/api)
+  const devUrl = (import.meta.env.VITE_API_URL || '').trim()
+  return (devUrl || '/api').replace(/\/+$/, '')
 }
 
 const BASE_URL = resolveBaseUrl()

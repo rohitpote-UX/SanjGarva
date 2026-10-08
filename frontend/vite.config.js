@@ -28,6 +28,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         // App shell is precached; API calls always go to the network.
         globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2}'],
         navigateFallback: '/index.html',

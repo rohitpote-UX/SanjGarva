@@ -2,8 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { registerSW } from 'virtual:pwa-register'
 import './locales'
 import './index.css'
+
+// Immediately register and activate latest service worker to purge stale caches
+registerSW({ immediate: true })
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
