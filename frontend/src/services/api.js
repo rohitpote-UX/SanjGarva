@@ -1,7 +1,21 @@
 import i18n from '../locales'
 import { storage, session } from '../utils/storage'
 
-const BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
+function resolveBaseUrl() {
+  const envUrl = (import.meta.env.VITE_API_URL || '').trim()
+
+  // In production browser environments (not localhost / 127.0.0.1),
+  // NEVER use a localhost or 127.0.0.1 URL even if configured in Vite env.
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    if (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
+      return '/api'
+    }
+  }
+
+  return (envUrl || '/api').replace(/\/+$/, '')
+}
+
+const BASE_URL = resolveBaseUrl()
 const TOKEN_KEY = 'sg_token'
 
 export const tokenStore = {
@@ -32,7 +46,12 @@ export class ApiError extends Error {
 }
 
 function buildUrl(path, params) {
-  const url = new URL(`${BASE_URL}${path}`, window.location.origin)
+  let cleanPath = path.startsWith('/') ? path : `/${path}`
+  // Prevent duplicate /api/api if both BASE_URL and path contain /api
+  if (BASE_URL.endsWith('/api') && cleanPath.startsWith('/api/')) {
+    cleanPath = cleanPath.slice(4)
+  }
+  const url = new URL(`${BASE_URL}${cleanPath}`, window.location.origin)
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v)

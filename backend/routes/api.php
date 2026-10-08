@@ -12,7 +12,43 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StockController;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+
+Route::get('health', function () {
+    $dbStatus = 'unknown';
+    $dbError = null;
+    $tableCount = 0;
+
+    try {
+        DB::connection()->getPdo();
+        $dbStatus = 'connected';
+        if (DB::getDriverName() === 'pgsql') {
+            $tables = DB::select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+        } else {
+            $tables = DB::select("SELECT name as table_name FROM sqlite_master WHERE type='table'");
+        }
+        $tableCount = count($tables);
+    } catch (\Throwable $e) {
+        $dbStatus = 'failed';
+        $dbError = $e->getMessage();
+    }
+
+    $isReady = $dbStatus === 'connected' && $tableCount > 0;
+
+    return response()->json([
+        'status' => $isReady ? 'ready' : 'degraded',
+        'app' => config('app.name'),
+        'environment' => config('app.env'),
+        'database' => [
+            'status' => $dbStatus,
+            'driver' => config('database.default'),
+            'table_count' => $tableCount,
+            'diagnostic' => $dbError ? ($dbStatus === 'failed' ? 'Database connection could not be established' : 'Database query error') : 'All systems operational',
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ], $isReady ? 200 : 503);
+});
 
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
