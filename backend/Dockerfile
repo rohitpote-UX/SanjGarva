@@ -5,6 +5,7 @@ WORKDIR /var/www/html
 
 # Install system dependencies, PostgreSQL dev libraries, zip & git
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     libpq-dev \
     libzip-dev \
     unzip \

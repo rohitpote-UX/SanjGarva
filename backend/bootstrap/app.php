@@ -69,12 +69,40 @@ return Application::configure(basePath: dirname(__DIR__))
                 $e instanceof HttpExceptionInterface && $e->getStatusCode() < 500 => response()->json([
                     'success' => false, 'code' => 'HTTP_'.$e->getStatusCode(), 'message' => __('messages.generic'),
                 ], $e->getStatusCode()),
-                default => response()->json(array_filter([
-                    'success' => false,
-                    'code' => 'SERVER_ERROR',
-                    'message' => __('messages.generic'),
-                    'debug' => config('app.debug') ? $e->getMessage() : null,
-                ]), 500),
+                default => (function () use ($e, $request) {
+                    $correlationId = $request->header('X-Correlation-ID')
+                        ?: $request->header('X-Request-ID')
+                        ?: (string) \Illuminate\Support\Str::uuid();
+
+                    $category = match (true) {
+                        $e instanceof \PDOException => 'database_connection',
+                        $e instanceof \Illuminate\Database\QueryException => 'database_query',
+                        str_contains(get_class($e), 'Token') => 'token_creation',
+                        default => 'server_error',
+                    };
+
+                    // Strip any database credentials or password fragments from logged message
+                    $safeMessage = preg_replace('/:[^:@\s]+@/', ':***@', $e->getMessage());
+
+                    \Illuminate\Support\Facades\Log::error('API Server Error', [
+                        'correlation_id' => $correlationId,
+                        'method' => $request->method(),
+                        'path' => $request->path(),
+                        'category' => $category,
+                        'exception' => get_class($e),
+                        'error_code' => $e->getCode(),
+                        'message' => \Illuminate\Support\Str::limit($safeMessage, 300),
+                        'timestamp' => now()->toIso8601String(),
+                    ]);
+
+                    return response()->json(array_filter([
+                        'success' => false,
+                        'code' => 'SERVER_ERROR',
+                        'message' => __('messages.generic'),
+                        'correlation_id' => $correlationId,
+                        'debug' => config('app.debug') ? $safeMessage : null,
+                    ]), 500)->header('X-Correlation-ID', $correlationId);
+                })(),
             };
         });
     })->create();

@@ -7,18 +7,34 @@ if [ -n "$PORT" ]; then
     sed -i "s/<VirtualHost \*:80>/<VirtualHost \*:$PORT>/g" /etc/apache2/sites-available/*.conf
 fi
 
-# Run database migrations if AUTORUN_MIGRATIONS is true OR if remote database (DB_URL / DB_HOST) is configured
-if [ "$AUTORUN_MIGRATIONS" = "true" ] || [ -n "$DB_URL" ] || ( [ -n "$DB_HOST" ] && [ "$DB_HOST" != "127.0.0.1" ] ); then
+# Resolve remote database URL or host from standard cloud/Vercel/Neon variables
+RESOLVED_DB_URL="${DB_URL:-${DATABASE_URL:-${POSTGRES_URL:-${POSTGRES_PRISMA_URL:-${POSTGRES_URL_NON_POOLING:-}}}}}"
+RESOLVED_DB_HOST="${DB_HOST:-${POSTGRES_HOST:-}}"
+
+if [ -n "$RESOLVED_DB_URL" ]; then
+    export DB_URL="$RESOLVED_DB_URL"
+    export DATABASE_URL="$RESOLVED_DB_URL"
+fi
+
+# Run database migrations if AUTORUN_MIGRATIONS is true OR if remote database is configured
+if [ "$AUTORUN_MIGRATIONS" = "true" ] || [ -n "$RESOLVED_DB_URL" ] || ( [ -n "$RESOLVED_DB_HOST" ] && [ "$RESOLVED_DB_HOST" != "127.0.0.1" ] && [ "$RESOLVED_DB_HOST" != "localhost" ] ); then
     echo "Checking and applying database migrations..."
-    php artisan migrate --force --isolated || true
-    echo "Ensuring baseline reference data exists..."
-    php artisan db:seed --force || true
+    # Note: Do NOT use --isolated here. When CACHE_STORE=database, --isolated attempts to acquire an atomic
+    # lock in the cache_locks table, which causes a fatal query exception if the cache table has not yet been created.
+    if php artisan migrate --force; then
+        echo "Database migrations applied successfully."
+        echo "Ensuring baseline reference data exists..."
+        php artisan db:seed --force || echo "Warning: Database seeding reported notices."
+    else
+        echo "ERROR: php artisan migrate failed. Verify database connectivity and credentials."
+    fi
 fi
 
 # Cache configuration and routes if in production with valid APP_KEY
 if [ "$APP_ENV" = "production" ] && [ -n "$APP_KEY" ]; then
-    php artisan config:cache || true
-    php artisan route:cache || true
+    echo "Caching Laravel configuration and routes for production..."
+    php artisan config:cache || echo "Warning: config:cache could not be completed."
+    php artisan route:cache || echo "Warning: route:cache could not be completed."
 fi
 
 exec "$@"

@@ -17,7 +17,11 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    'default' => env('DB_CONNECTION', (
+        env('DB_URL') || env('DATABASE_URL') || env('POSTGRES_URL') || env('POSTGRES_PRISMA_URL') ||
+        (env('DB_HOST') && env('DB_HOST') !== '127.0.0.1' && env('DB_HOST') !== 'localhost') ||
+        env('POSTGRES_HOST')
+    ) ? 'pgsql' : 'sqlite'),
 
     /*
     |--------------------------------------------------------------------------
@@ -86,17 +90,17 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
+            'url' => env('DB_URL') ?: env('DATABASE_URL') ?: env('POSTGRES_URL') ?: env('POSTGRES_PRISMA_URL') ?: env('POSTGRES_URL_NON_POOLING'),
+            'host' => env('DB_HOST', env('POSTGRES_HOST', '127.0.0.1')),
+            'port' => env('DB_PORT', env('POSTGRES_PORT', '5432')),
+            'database' => env('DB_DATABASE', env('POSTGRES_DATABASE', 'laravel')),
+            'username' => env('DB_USERNAME', env('POSTGRES_USER', 'root')),
+            'password' => env('DB_PASSWORD', env('POSTGRES_PASSWORD', '')),
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'search_path' => env('DB_SCHEMA', 'public'),
+            'sslmode' => env('DB_SSLMODE', 'require'),
         ],
 
         'sqlsrv' => [
