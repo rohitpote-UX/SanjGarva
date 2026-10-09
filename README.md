@@ -97,16 +97,6 @@ weighted-average COGS, P&L, bill cancellation, adjustments, auth, every read/exp
    ```
 4. HTTPS is required for the PWA install prompt and for secure token transport.
 
-### Backend → Vercel (alternative)
-`backend/vercel.json` + `backend/api/index.php` run Laravel on the `vercel-php` runtime (storage redirected to `/tmp`).
-1. New Vercel project from the same repo, **Root Directory** = `backend`, Framework = Other.
-2. Use a hosted PostgreSQL (Neon, Supabase…) — `127.0.0.1` does not exist on Vercel. Env vars:
-   `APP_KEY` (from `php artisan key:generate --show`), `APP_URL`, `DB_CONNECTION=pgsql`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`,
-   `DB_USERNAME`, `DB_PASSWORD`, `DB_SSLMODE=require`, `FRONTEND_URL=https://your-frontend.vercel.app`.
-3. Run migrations once from your machine against that database: `php artisan migrate --force --seed`.
-4. Frontend project: `VITE_API_URL=https://your-backend.vercel.app/api`, then redeploy.
-Errors are logged to stderr → see the backend project's **Logs** tab in Vercel.
-
 Auth uses Sanctum **Bearer tokens** (16 h, or 30 days with "Keep me logged in"); there are no cookies, so CSRF does not apply to the API.
 Login is rate-limited (5/min per login+IP), the API to 300/min per user. Never commit `.env`.
 
