@@ -14,6 +14,15 @@ RESOLVED_DB_HOST="${DB_HOST:-${POSTGRES_HOST:-}}"
 if [ -n "$RESOLVED_DB_URL" ]; then
     export DB_URL="$RESOLVED_DB_URL"
     export DATABASE_URL="$RESOLVED_DB_URL"
+    if [ -z "$DB_CONNECTION" ]; then
+        export DB_CONNECTION="pgsql"
+    fi
+fi
+
+# Ensure an APP_KEY is available (fallback to dynamic key if not configured in Vercel)
+if [ -z "$APP_KEY" ]; then
+    echo "Notice: APP_KEY is not set in environment. Generating a runtime key..."
+    export APP_KEY="$(php artisan key:generate --show)"
 fi
 
 # Run database migrations if AUTORUN_MIGRATIONS is true OR if remote database is configured
