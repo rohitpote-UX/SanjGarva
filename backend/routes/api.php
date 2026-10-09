@@ -91,9 +91,14 @@ Route::get('health', function () {
                 'has_db_url' => ! empty(env('DB_URL')),
                 'has_database_url' => ! empty(env('DATABASE_URL')),
                 'has_postgres_url' => ! empty(env('POSTGRES_URL')),
+                'has_neon_url' => ! empty(env('NEON_DATABASE_URL')) || ! empty(env('NEON_URL')),
                 'has_remote_host' => ! empty(env('DB_HOST')) && ! in_array(env('DB_HOST'), ['127.0.0.1', 'localhost']),
                 'has_app_key' => ! empty(env('APP_KEY')),
             ],
+            'detected_env_database_keys' => array_values(array_filter(
+                array_keys(array_merge($_SERVER, $_ENV)),
+                fn ($k) => (bool) preg_match('/^(DATABASE_|DB_|POSTGRES_|NEON_)/i', $k)
+            )),
         ],
         'timestamp' => now()->toIso8601String(),
     ], $isReady ? 200 : 503);
